@@ -140,10 +140,14 @@ void tx_init(sr_device_t *d){
     //Nibbles per slice controls how PIO digital data is stored
     //Only support 0,1,2,4 or 8, which use 0,4,8,16 or 32 bits of PIO fifo data
     //per sample clock.
-    d->d_nps=(d->d_mask&       0xF) ? 1 : 0;
-    d->d_nps=(d->d_mask&      0xF0) ? (d->d_nps)+1 : d->d_nps;
-    d->d_nps=(d->d_mask&    0xFF00) ? (d->d_nps)+2 : d->d_nps;
-    d->d_nps=(d->d_mask&0xFFFF0000) ? (d->d_nps)+4 : d->d_nps;
+    uint32_t shifted_d_mask = d->d_mask;
+     while ((shifted_d_mask & 0x1) == 0) {
+        shifted_d_mask >>= 1;
+     }
+    d->d_nps=(shifted_d_mask&       0xF) ? 1 : 0;
+    d->d_nps=(shifted_d_mask&      0xF0) ? (d->d_nps)+1 : d->d_nps;
+    d->d_nps=(shifted_d_mask&    0xFF00) ? (d->d_nps)+2 : d->d_nps;
+    d->d_nps=(shifted_d_mask&0xFFFF0000) ? (d->d_nps)+4 : d->d_nps;
     //Dealing with samples on a per nibble, rather than per byte basis in non D4 mode
     //creates a bunch of annoying special cases, so forcing non D4 mode to always store a minimum
     //of 8 bits.

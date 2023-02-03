@@ -987,11 +987,18 @@ for faster parsing.
     15-16  2          3
     17-21  4          3
 */
+             uint32_t shifted_d_mask = dev.d_mask;
+             uint8_t start_pin = 2;
+             while ((shifted_d_mask & 0x1) == 0) {
+                start_pin++;
+                shifted_d_mask >>= 1;
+             }
+
              dev.pin_count=0 ;
-             if(dev.d_mask&0x0000000F) dev.pin_count+=4;
-             if(dev.d_mask&0x000000F0) dev.pin_count+=4;
-             if(dev.d_mask&0x0000FF00) dev.pin_count+=8;
-             if(dev.d_mask&0x0FFF0000) dev.pin_count+=16;
+             if(shifted_d_mask&0x0000000F) dev.pin_count+=4;
+             if(shifted_d_mask&0x000000F0) dev.pin_count+=4;
+             if(shifted_d_mask&0x0000FF00) dev.pin_count+=8;
+             if(shifted_d_mask&0x0FFF0000) dev.pin_count+=16;
              //If 4 or less channels are enabled but ADC is also enabled, set a minimum size of 1B of PIO storage
              if((dev.pin_count==4)&&(dev.a_chan_cnt)){dev.pin_count=8;}
              d_dma_bps=dev.pin_count>>3;
@@ -1009,7 +1016,7 @@ for faster parsing.
              // with autopush enabled.
              pio_sm_config c = pio_get_default_sm_config();
              //start at GPIO2 (keep 0 and 1 for uart)
-             sm_config_set_in_pins(&c, 2);
+             sm_config_set_in_pins(&c, start_pin);
              sm_config_set_wrap(&c, offset, offset);
 
              uint16_t div_int;              
