@@ -40,6 +40,76 @@
 //The authors PICO failed at 288Mhz, but testing with 240Mhz seemed reliable
 //#define SYS_CLK_BOOST_EN 1
 //#define SYS_CLK_BOOST_FREQ 240000
+
+// Pin naming for UI. The protocol always uses GPIO numbers.
+#ifdef ADAFRUIT_KB2040
+#define PIN_NAMES "" \
+    "D1," /* GPIO0 */ \
+    "D0," /* GPIO1 */ \
+    "SDA,"/* GPIO2 */ \
+    "SCL,"/* GPIO3 */ \
+    "NEOPIXEL," /* GPIO4 */ \
+    "D5," /* GPIO5 */ \
+    "D6," /* GPIO6 */ \
+    "BOOT," /* GPIO7 */ \
+    "MISO," /* GPIO8 */ \
+    "D9," /* GPIO9 */ \
+    "D10," /* GPIO10 */ \
+    "D11," /* GPIO11 */ \
+    "D12," /* GPIO12 */ \
+    "D13," /* GPIO13 */ \
+    "SCK," /* GPIO14 */ \
+    "MOSI," /* GPIO15 */ \
+    "NEOPIXEL0," /* GPIO16 */ \
+    "NEOPIXEL1," /* GPIO17 */ \
+    "NEOPIXEL2," /* GPIO18 */ \
+    "NEOPIXEL3," /* GPIO19 */ \
+    "NEOPIXEL4," /* GPIO20 */ \
+    "NEOPIXEL5," /* GPIO21 */ \
+    "NEOPIXEL6," /* GPIO22 */ \
+    "NEOPIXEL7," /* GPIO23 */ \
+    "D24," /* GPIO24 */ \
+    "D25," /* GPIO25 */ \
+    "A0," /* GPIO26 / ADC0 */ \
+    "A1," /* GPIO27 / ADC1 */ \
+    "A2," /* GPIO28 / ADC2 */ \
+    "A3" /* GPIO29 / ADC3 */
+#else
+// Use RP2040 names
+static const char* pin_names =
+    "GPIO0,"
+    "GPIO1,"
+    "GPIO2,"
+    "GPIO3,"
+    "GPIO4,"
+    "GPIO5,"
+    "GPIO6,"
+    "GPIO7,"
+    "GPIO8,"
+    "GPIO9,"
+    "GPIO10,"
+    "GPIO11,"
+    "GPIO12,"
+    "GPIO13,"
+    "GPIO14,"
+    "GPIO15,"
+    "GPIO16,"
+    "GPIO17,"
+    "GPIO18,"
+    "GPIO19,"
+    "GPIO20,"
+    "GPIO21,"
+    "GPIO22,"
+    "GPIO23,"
+    "GPIO24,"
+    "GPIO25,"
+    "ADC0,"
+    "ADC1,"
+    "ADC2,"
+    "ADC3"
+;
+#endif
+
 int Dprintf(const char *fmt, ...)
 {
   
@@ -83,7 +153,7 @@ typedef struct sr_device {
   char cmdstr[20];//used for parsing input
   uint32_t d_size,a_size; //size of each of the two data buffers for each of a& d
   uint32_t dbuf0_start,dbuf1_start,abuf0_start,abuf1_start; //starting memory pointers of adc buffers
-  char rspstr[20];
+  char rspstr[256];
 //mark key control variables voltatile since multiple cores might access them
   volatile bool started;
   volatile bool sending;
@@ -183,7 +253,13 @@ int process_char(sr_device_t *d,char charin){
     switch(d->cmdstr[0]){
     case 'i':
        //SREGEN,AxxyDzz,00 - num analog, analog size, num digital,version
-       sprintf(d->rspstr,"SRPICO,A%02d1D%02d,02",NUM_A_CHAN,NUM_D_CHAN);
+       sprintf(d->rspstr,"SRPICO,A%02d1D%02d,03\n",NUM_A_CHAN,NUM_D_CHAN);
+       Dprintf("ID rsp %s\n\r",d->rspstr);
+       ret=1;
+       break;
+    case 'b':
+       // Board info
+       sprintf(d->rspstr, PICO_BOARD "\n" PIN_NAMES "\n");
        Dprintf("ID rsp %s\n\r",d->rspstr);
        ret=1;
        break;
