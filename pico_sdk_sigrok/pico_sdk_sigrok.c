@@ -273,10 +273,6 @@ uint32_t  get_cval(uint8_t *dbuf){
            cval=(*((uint16_t *) (dbuf+rxbufdidx)));
        }else{
            cval=(*((uint32_t *) (dbuf+rxbufdidx)));
-           //To make a 32bit value written from PIO we pull in IOs that aren't actuall
-           //digital channels so mask them off
-           cval<<=11;
-           cval>>=11;
        }
        rxbufdidx+=d_dma_bps;
        return cval;
@@ -329,9 +325,7 @@ void send_slice_init(sr_device_t *d,uint8_t *dbuf){
    //Always send the first sample to establish a previous value for RLE
    //the use of get_cval is inefficient, but only done once per half buffer
    lval=get_cval(dbuf);
-   //If we are in 4B mode shift off invalid bits
-   lval<<=11;
-   lval>>=11;
+   lval &= d->sample_mask;
    tx_d_samp(d,lval);
    samp_remain--;
    rlecnt=0;
@@ -347,10 +341,11 @@ void send_slice_init(sr_device_t *d,uint8_t *dbuf){
 void __attribute__ ((noinline)) send_slices_1B(sr_device_t *d,uint8_t *dbuf){
    send_slice_init(d,dbuf);
    for(int s=0;s<samp_remain;s++){
-       cval=dbuf[rxbufdidx++]; 
+       cval=dbuf[rxbufdidx++];
+       cval &= d->sample_mask;
        if(cval==lval){
            rlecnt++;
-         }
+       }
        else{
          check_rle();
          tx_d_samp(d,cval);
@@ -367,6 +362,7 @@ void __attribute__ ((noinline)) send_slices_2B(sr_device_t *d,uint8_t *dbuf){
    send_slice_init(d,dbuf);
    for(int s=0;s<samp_remain;s++){
        cval=(*((uint16_t *) (dbuf+rxbufdidx)));
+       cval &= d->sample_mask;
        rxbufdidx+=2;
        if(cval==lval){
 	   rlecnt++;
@@ -386,10 +382,8 @@ void __attribute__ ((noinline)) send_slices_4B(sr_device_t *d,uint8_t *dbuf){
    send_slice_init(d,dbuf);
    for(int s=0;s<samp_remain;s++){
        cval=(*((uint32_t *) (dbuf+rxbufdidx)));
+       cval &= d->sample_mask;
        rxbufdidx+=4;
-       //Mask invalid bits
-       cval<<=11;
-       cval>>=11;
        if(cval==lval){
 	   rlecnt++;
          }
@@ -424,6 +418,7 @@ uint32_t send_slices_analog(sr_device_t *d,uint8_t *dbuf,uint8_t *abuf){
    for(int s=0;s<samp_remain;s++){
          if(d->d_mask){
             cval=get_cval(dbuf);
+            cval &= d->sample_mask;
             tx_d_samp(d,cval);
 	    //Dprintf("s %d cv %X bps %d idx t %d r %d \n\r",s,cval,d_dma_bps,txbufidx,rxbufdidx);
          }
@@ -708,6 +703,7 @@ int main(){
     adc_gpio_init(26);
     adc_gpio_init(27);
     adc_gpio_init(28);
+    adc_gpio_init(29);
     adc_init();
 
     multicore_launch_core1(core1_code);
@@ -780,7 +776,7 @@ int main(){
     //If either malloc fails the code will just hang
     Dprintf("Malloc\n\r");
     capture_buf=malloc(DMA_BUF_SIZE);
-    Dprintf("DMA start %p\n\r",(void *)capture_buf);
+    Dprintf("DMA start %p size %d\n\r",(void *)capture_buf, DMA_BUF_SIZE);
     //Ensure we leave 10k or more left for any dynamic allocations that need it
     uint8_t *tptr;
     tptr=malloc(10000);
@@ -847,7 +843,7 @@ int main(){
            //Nibble size storage is only allow for D4 mode with no analog channels enabled
            //For instance a D0..D5 with A0 would give 1/2 the storage to digital and 1/2 to analog
            uint32_t d_nibbles,a_nibbles,t_nibbles; //digital, analog and total nibbles
-           d_nibbles=dev.d_nps;  //digital is in grous of 4 bits
+           d_nibbles=dev.d_nps;  //digital is in groups of 4 bits
            a_nibbles=dev.a_chan_cnt*2; //1 byte per sample 
            t_nibbles=d_nibbles+a_nibbles;
 
@@ -957,7 +953,7 @@ int main(){
 
              //This is needed to clear the AINSEL so that when the round robin arbiter starts we start sampling on channel 0
              adc_select_input(0);
-             adc_set_round_robin(dev.a_mask & 0x7);
+             adc_set_round_robin(dev.a_mask & 0xf);
              //             en, dreq_en,dreq_thresh,err_in_fifo,byte_shift to 8 bit
              adc_fifo_setup(true, true,   1,           false,       true);
 
@@ -988,7 +984,7 @@ for faster parsing.
     17-21  4          3
 */
              uint32_t shifted_d_mask = dev.d_mask;
-             uint8_t start_pin = 2;
+             uint8_t start_pin = 0;
              while ((shifted_d_mask & 0x1) == 0) {
                 start_pin++;
                 shifted_d_mask >>= 1;

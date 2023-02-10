@@ -5,14 +5,14 @@
 //GP24-25 are not on the board and not used
 //GP26-28 are ADC.
 //number of analog channels
-#define NUM_A_CHAN 3
+#define NUM_A_CHAN 4
 //number of digital channels
-#define NUM_D_CHAN 21
+#define NUM_D_CHAN 26
 //Mask of bits 22:2 to use as inputs - 
-#define GPIO_D_MASK 0x7FFFFC
+#define GPIO_D_MASK 0x0FFFFFFC
 //Storage size of the DMA buffer.  The buffer is split into two halves so that when the first
 //buffer fills we can send the trace data serially while the other buffer is DMA'dinto
-#define DMA_BUF_SIZE 220000
+#define DMA_BUF_SIZE 240000
 //The size of the buffer sent to the CDC serial
 //The TUD CDC buffer is only 256B so it doesn't help to have more than this.
 #define TX_BUF_SIZE 260
@@ -76,38 +76,37 @@
     "A3" /* GPIO29 / ADC3 */
 #else
 // Use RP2040 names
-static const char* pin_names =
-    "GPIO0,"
-    "GPIO1,"
-    "GPIO2,"
-    "GPIO3,"
-    "GPIO4,"
-    "GPIO5,"
-    "GPIO6,"
-    "GPIO7,"
-    "GPIO8,"
-    "GPIO9,"
-    "GPIO10,"
-    "GPIO11,"
-    "GPIO12,"
-    "GPIO13,"
-    "GPIO14,"
-    "GPIO15,"
-    "GPIO16,"
-    "GPIO17,"
-    "GPIO18,"
-    "GPIO19,"
-    "GPIO20,"
-    "GPIO21,"
-    "GPIO22,"
-    "GPIO23,"
-    "GPIO24,"
-    "GPIO25,"
-    "ADC0,"
-    "ADC1,"
-    "ADC2,"
+#define PIN_NAMES "" \
+    "GPIO0," \
+    "GPIO1," \
+    "GPIO2," \
+    "GPIO3," \
+    "GPIO4," \
+    "GPIO5," \
+    "GPIO6," \
+    "GPIO7," \
+    "GPIO8," \
+    "GPIO9," \
+    "GPIO10," \
+    "GPIO11," \
+    "GPIO12," \
+    "GPIO13," \
+    "GPIO14," \
+    "GPIO15," \
+    "GPIO16," \
+    "GPIO17," \
+    "GPIO18," \
+    "GPIO19," \
+    "GPIO20," \
+    "GPIO21," \
+    "GPIO22," \
+    "GPIO23," \
+    "GPIO24," \
+    "GPIO25," \
+    "ADC0," \
+    "ADC1," \
+    "ADC2," \
     "ADC3"
-;
 #endif
 
 int Dprintf(const char *fmt, ...)
@@ -141,6 +140,7 @@ typedef struct sr_device {
   uint32_t sample_rate;
   uint32_t num_samples;
   uint32_t a_mask,d_mask;
+  uint32_t sample_mask;
   uint32_t samples_per_half; //number of samples for one of the 4 dma target arrays
   uint8_t a_chan_cnt; //count of enabled analog channels
   uint8_t d_chan_cnt; //count of enabled digital channels
@@ -193,6 +193,7 @@ void init(sr_device_t *d){
     reset(d);
     d->a_mask=0;
     d->d_mask=0;
+    d->sample_mask = 0;
     d->sample_rate=5000;
     d->num_samples=10;
     d->a_chan_cnt=0;
@@ -211,19 +212,44 @@ void tx_init(sr_device_t *d){
     //Only support 0,1,2,4 or 8, which use 0,4,8,16 or 32 bits of PIO fifo data
     //per sample clock.
     uint32_t shifted_d_mask = d->d_mask;
-     while ((shifted_d_mask & 0x1) == 0) {
+    while ((shifted_d_mask & 0x1) == 0) {
         shifted_d_mask >>= 1;
-     }
-    d->d_nps=(shifted_d_mask&       0xF) ? 1 : 0;
-    d->d_nps=(shifted_d_mask&      0xF0) ? (d->d_nps)+1 : d->d_nps;
-    d->d_nps=(shifted_d_mask&    0xFF00) ? (d->d_nps)+2 : d->d_nps;
-    d->d_nps=(shifted_d_mask&0xFFFF0000) ? (d->d_nps)+4 : d->d_nps;
+    }
+    // nps is nibbles (4 bits) per sample (32 bits)
+    if (shifted_d_mask&0xFFFF0000) {
+        d->d_nps = 8;
+    } else if (shifted_d_mask&      0xF0) {
+        d->d_nps = 4;
+    } else if (shifted_d_mask&    0xFF00) {
+        d->d_nps = 2;
+    } else if (shifted_d_mask&       0xF) {
+        d->d_nps = 1;
+    } else {
+        d->d_nps = 0;
+    }
     //Dealing with samples on a per nibble, rather than per byte basis in non D4 mode
     //creates a bunch of annoying special cases, so forcing non D4 mode to always store a minimum
     //of 8 bits.
     if((d->d_nps==1)&&(d->a_chan_cnt>0)){d->d_nps=2;}
 
-    //Digital channels must enable from D0 and go up, but that is checked by the host
+    // Sample mask marks all enabled channels in a sample so that disabled channels
+    // are ignored.
+    if (d->d_nps <= 8) {
+        d->sample_mask = shifted_d_mask;
+    }
+    if (d->d_nps <= 4) {
+        d->sample_mask |= shifted_d_mask << 16;
+    }
+    if (d->d_nps <= 2) {
+        d->sample_mask |= shifted_d_mask << 8;
+        d->sample_mask |= shifted_d_mask << 24;   
+    }
+    if (d->d_nps == 1) {
+        d->sample_mask |= shifted_d_mask << 4;
+        d->sample_mask |= shifted_d_mask << 12;
+        d->sample_mask |= shifted_d_mask << 20;
+        d->sample_mask |= shifted_d_mask << 28;
+    }
     d->d_chan_cnt=0;
     for(int i=0;i<NUM_D_CHAN;i++){
        if(((d->d_mask)>>i)&1){
