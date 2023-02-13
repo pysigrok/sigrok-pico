@@ -74,6 +74,39 @@
     "A1," /* GPIO27 / ADC1 */ \
     "A2," /* GPIO28 / ADC2 */ \
     "A3" /* GPIO29 / ADC3 */
+#elif defined(RASPBERRYPI_PICO)
+// Use RP2040 names
+#define PIN_NAMES "" \
+    "GP0," \
+    "GP1," \
+    "GP2," \
+    "GP3," \
+    "GP4," \
+    "GP5," \
+    "GP6," \
+    "GP7," \
+    "GP8," \
+    "GP9," \
+    "GP10," \
+    "GP11," \
+    "GP12," \
+    "GP13," \
+    "GP14," \
+    "GP15," \
+    "GP16," \
+    "GP17," \
+    "GP18," \
+    "GP19," \
+    "GP20," \
+    "GP21," \
+    "GP22," \
+    "," /* Leave GP23 empty so it can't be used */ \
+    "," \
+    "," \
+    "GP26_A0," \
+    "GP27_A1," \
+    "GP28_A2," \
+    ""
 #else
 // Use RP2040 names
 #define PIN_NAMES "" \
