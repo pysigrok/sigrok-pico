@@ -42,7 +42,7 @@
 //#define SYS_CLK_BOOST_FREQ 240000
 
 // Pin naming for UI. The protocol always uses GPIO numbers.
-#ifdef ADAFRUIT_KB2040
+#ifdef ADAFRUIT_SCORPIO
 #define PIN_NAMES "" \
     "D1," /* GPIO0 */ \
     "D0," /* GPIO1 */ \
@@ -74,6 +74,38 @@
     "A1," /* GPIO27 / ADC1 */ \
     "A2," /* GPIO28 / ADC2 */ \
     "A3" /* GPIO29 / ADC3 */
+#elif defined(ADAFRUIT_PYRATE)
+#define PIN_NAMES "" \
+    "MISO," /* GPIO0 */ \
+    "CS," /* GPIO1 */ \
+    "SCK,"/* GPIO2 */ \
+    "MOSI,"/* GPIO3 */ \
+    "AUX," /* GPIO4 */ \
+    "," /* GPIO5 */ \
+    "," /* GPIO6 */ \
+    "," /* GPIO7 */ \
+    "," /* GPIO8 */ \
+    "," /* GPIO9 */ \
+    "," /* GPIO10 */ \
+    "," /* GPIO11 */ \
+    "," /* GPIO12 */ \
+    "," /* GPIO13 */ \
+    "," /* GPIO14 */ \
+    "," /* GPIO15 */ \
+    "," /* GPIO16 */ \
+    "," /* GPIO17 */ \
+    "STEMMA_SDA," /* GPIO18 */ \
+    "STEMMA_SCL," /* GPIO19 */ \
+    "," /* GPIO20 */ \
+    "," /* GPIO21 */ \
+    "," /* GPIO22 */ \
+    "," /* GPIO23 */ \
+    "," /* GPIO24 */ \
+    "," /* GPIO25 */ \
+    "3V," /* GPIO26 / ADC0 */ \
+    "5V," /* GPIO27 / ADC1 */ \
+    "ADC," /* GPIO28 / ADC2 */ \
+    "VEXTERN" /* GPIO29 / ADC3 */
 #elif defined(RASPBERRYPI_PICO)
 // Use RP2040 names
 #define PIN_NAMES "" \
